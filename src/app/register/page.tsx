@@ -76,7 +76,7 @@ export default function RegisterPage() {
 
       // Simulate registration delay
       await new Promise(resolve => setTimeout(resolve, 1500))
-      router.push('/')
+      router.push('/dashboard')
     } catch {
       setError('Registration failed. Please try again.')
     } finally {

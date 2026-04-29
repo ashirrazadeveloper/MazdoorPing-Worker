@@ -31,7 +31,7 @@ export default function LoginPage() {
 
       // Simulate login delay
       await new Promise(resolve => setTimeout(resolve, 1000))
-      router.push('/')
+      router.push('/dashboard')
     } catch {
       setError('Login failed. Please try again.')
     } finally {

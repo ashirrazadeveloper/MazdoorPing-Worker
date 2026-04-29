@@ -6,7 +6,7 @@ import { Home, Briefcase, Wallet, AlertTriangle, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { href: '/', label: 'Home', labelUr: 'ہوم', icon: Home },
+  { href: '/dashboard', label: 'Home', labelUr: 'ہوم', icon: Home },
   { href: '/jobs', label: 'Jobs', labelUr: 'کام', icon: Briefcase },
   { href: '/wallet', label: 'Wallet', labelUr: 'پرس', icon: Wallet },
   { href: '/sos', label: 'SOS', labelUr: 'ایس او ایس', icon: AlertTriangle },
@@ -20,8 +20,8 @@ export default function BottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border safe-bottom">
       <div className="max-w-lg mx-auto flex items-center justify-around h-16">
         {navItems.map((item) => {
-          const isActive = item.href === '/'
-            ? pathname === '/' || pathname === '' 
+          const isActive = item.href === '/dashboard'
+            ? pathname === '/dashboard' || pathname === '' 
             : pathname.startsWith(item.href)
           const isSos = item.href === '/sos'
 

@@ -55,7 +55,7 @@ export default function MyJobsPage() {
                 title="No active jobs"
                 description="Browse available jobs and place bids to start working"
                 actionLabel="Find Jobs"
-                actionHref="/jobs"
+                actionHref="/dashboard/jobs"
               />
             )}
           </TabsContent>
@@ -74,7 +74,7 @@ export default function MyJobsPage() {
                 title="No pending bids"
                 description="Place bids on jobs you're interested in"
                 actionLabel="Find Jobs"
-                actionHref="/jobs"
+                actionHref="/dashboard/jobs"
               />
             )}
           </TabsContent>

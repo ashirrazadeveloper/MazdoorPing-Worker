@@ -63,25 +63,25 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-3">
-          <Link href="/jobs" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-green-50 transition-colors">
+          <Link href="/dashboard/jobs" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-green-50 transition-colors">
             <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
               <Briefcase className="h-5 w-5 text-green-600" />
             </div>
             <span className="text-xs font-medium text-foreground">Find Jobs</span>
           </Link>
-          <Link href="/my-jobs" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-blue-50 transition-colors">
+          <Link href="/dashboard/my-jobs" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-blue-50 transition-colors">
             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
               <Briefcase className="h-5 w-5 text-blue-600" />
             </div>
             <span className="text-xs font-medium text-foreground">My Jobs</span>
           </Link>
-          <Link href="/wallet" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-purple-50 transition-colors">
+          <Link href="/dashboard/wallet" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-purple-50 transition-colors">
             <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
               <Wallet className="h-5 w-5 text-purple-600" />
             </div>
             <span className="text-xs font-medium text-foreground">Wallet</span>
           </Link>
-          <Link href="/sos" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-red-50 transition-colors">
+          <Link href="/dashboard/sos" className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white border border-border hover:bg-red-50 transition-colors">
             <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
@@ -93,7 +93,7 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base font-bold text-foreground">Jobs Nearby</h3>
-            <Link href="/jobs" className="text-sm text-primary font-medium flex items-center gap-0.5 hover:underline">
+            <Link href="/dashboard/jobs" className="text-sm text-primary font-medium flex items-center gap-0.5 hover:underline">
               View All <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-foreground">Earnings Summary</h3>
-              <Link href="/wallet" className="text-xs text-primary font-medium hover:underline">
+              <Link href="/dashboard/wallet" className="text-xs text-primary font-medium hover:underline">
                 View Details
               </Link>
             </div>

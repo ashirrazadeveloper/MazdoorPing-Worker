@@ -190,8 +190,8 @@ export default function ProfilePage() {
             <h3 className="text-sm font-bold text-foreground mb-3">Quick Links</h3>
             <div className="space-y-1">
               {[
-                { label: 'My Reviews', icon: Star, href: '/reviews', count: worker.total_reviews },
-                { label: 'Notifications', icon: Bell, href: '/notifications', count: 3 },
+                { label: 'My Reviews', icon: Star, href: '/dashboard/reviews', count: worker.total_reviews },
+                { label: 'Notifications', icon: Bell, href: '/dashboard/notifications', count: 3 },
                 { label: 'Verification Status', icon: Shield, href: '#', count: null },
               ].map(link => (
                 <button

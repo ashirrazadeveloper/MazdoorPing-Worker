@@ -31,7 +31,7 @@ export default function Header({ title, showBack = false, showNotifications = fa
         </div>
         {showNotifications && (
           <button
-            onClick={() => router.push('/notifications')}
+            onClick={() => router.push('/dashboard/notifications')}
             className="relative p-2 rounded-lg hover:bg-muted transition-colors"
             aria-label="Notifications"
           >

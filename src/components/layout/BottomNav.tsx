@@ -7,10 +7,10 @@ import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/dashboard', label: 'Home', labelUr: 'ہوم', icon: Home },
-  { href: '/jobs', label: 'Jobs', labelUr: 'کام', icon: Briefcase },
-  { href: '/wallet', label: 'Wallet', labelUr: 'پرس', icon: Wallet },
-  { href: '/sos', label: 'SOS', labelUr: 'ایس او ایس', icon: AlertTriangle },
-  { href: '/profile', label: 'Profile', labelUr: 'پروفائل', icon: User },
+  { href: '/dashboard/jobs', label: 'Jobs', labelUr: 'کام', icon: Briefcase },
+  { href: '/dashboard/wallet', label: 'Wallet', labelUr: 'پرس', icon: Wallet },
+  { href: '/dashboard/sos', label: 'SOS', labelUr: 'ایس او ایس', icon: AlertTriangle },
+  { href: '/dashboard/profile', label: 'Profile', labelUr: 'پروفائل', icon: User },
 ]
 
 export default function BottomNav() {
@@ -21,9 +21,9 @@ export default function BottomNav() {
       <div className="max-w-lg mx-auto flex items-center justify-around h-16">
         {navItems.map((item) => {
           const isActive = item.href === '/dashboard'
-            ? pathname === '/dashboard' || pathname === '' 
+            ? pathname === '/dashboard' || pathname === ''
             : pathname.startsWith(item.href)
-          const isSos = item.href === '/sos'
+          const isSos = item.href === '/dashboard/sos'
 
           return (
             <Link

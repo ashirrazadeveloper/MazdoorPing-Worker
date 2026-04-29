@@ -1,0 +1,17 @@
+{
+  "name": "MazdoorPing Worker",
+  "short_name": "MazdoorPing",
+  "description": "Find daily wage jobs near you - Pakistan's #1 labor marketplace",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16A34A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

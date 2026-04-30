@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import {
   ArrowLeft, MapPin, Clock, User, Star,
-  Send, CheckCircle2
+  Send, CheckCircle2, Loader2
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,8 +13,9 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
-import { WORKER_CATEGORIES } from '@/types'
-import { mockJobs } from '@/data/mock'
+import { getJobById, placeBid } from '@/lib/services'
+import { useAuth } from '@/components/auth/AuthProvider'
+import type { Job } from '@/types'
 import { formatPKR, formatTimeAgo } from '@/lib/utils'
 import {
   Dialog,
@@ -23,26 +25,83 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 
-export default function JobDetailPage({ params }: { params: { id: string } }) {
+const Map = dynamic(() => import('@/components/Map'), { ssr: false })
+
+export default function JobDetailPage() {
   const router = useRouter()
+  const params = useParams()
+  const { workerProfile } = useAuth()
+  const [job, setJob] = useState<Job | null>(null)
+  const [loading, setLoading] = useState(true)
   const [showBidDialog, setShowBidDialog] = useState(false)
   const [bidAmount, setBidAmount] = useState('')
   const [bidMessage, setBidMessage] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  // Find job from mock data
-  const job = mockJobs.find(j => j.id === params.id) || mockJobs[0]
-  const categoryInfo = WORKER_CATEGORIES[job.category]
+  useEffect(() => {
+    async function fetchJob() {
+      try {
+        const data = await getJobById(params.id as string)
+        setJob(data)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (params.id) fetchJob()
+  }, [params.id])
 
-  const handleSubmitBid = () => {
-    if (!bidAmount) return
-    setSubmitted(true)
-    setTimeout(() => {
-      setShowBidDialog(false)
-      setSubmitted(false)
-      setBidAmount('')
-      setBidMessage('')
-    }, 1500)
+  const handleSubmitBid = async () => {
+    if (!bidAmount || !workerProfile) return
+    setSubmitting(true)
+    try {
+      await placeBid(job!.id, workerProfile.id, parseFloat(bidAmount), bidMessage)
+      setSubmitted(true)
+      setTimeout(() => {
+        setShowBidDialog(false)
+        setSubmitted(false)
+        setBidAmount('')
+        setBidMessage('')
+      }, 1500)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50">
+        <header className="sticky top-0 z-40 glass border-b border-border/50">
+          <div className="flex items-center h-14 px-4 max-w-lg mx-auto">
+            <button onClick={() => router.back()} className="p-2 -ml-2 rounded-xl">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-lg font-bold truncate ml-2">Job Details</h1>
+          </div>
+        </header>
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-32 bg-gray-200 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (!job) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-5xl mb-4">😕</div>
+          <p className="text-base font-semibold">Job not found</p>
+          <Button variant="outline" className="mt-4 rounded-xl" onClick={() => router.back()}>Go Back</Button>
+        </div>
+      </div>
+    )
   }
 
   const urgencyColor = job.urgency === 'emergency'
@@ -50,6 +109,25 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
     : job.urgency === 'urgent'
       ? 'bg-orange-100 text-orange-700 border-orange-200'
       : ''
+
+  const employerName = job.employer?.full_name || 'Employer'
+  const employerRating = job.employer?.rating
+  const categoryInfo = job.category
+  const hasCoords = job.latitude != null && job.longitude != null
+
+  // Default coords for Pakistan cities
+  const cityCoords: Record<string, [number, number]> = {
+    'Lahore': [31.5204, 74.3587],
+    'Karachi': [24.8607, 67.0011],
+    'Islamabad': [33.6844, 73.0479],
+    'Rawalpindi': [33.5651, 73.0169],
+    'Faisalabad': [31.4504, 73.1350],
+    'Multan': [30.1575, 71.5249],
+    'Peshawar': [34.0151, 71.5249],
+    'Quetta': [30.1798, 66.9750],
+  }
+  const mapLat = hasCoords ? Number(job.latitude) : (cityCoords[job.city]?.[0] || 31.5204)
+  const mapLng = hasCoords ? Number(job.longitude) : (cityCoords[job.city]?.[1] || 74.3587)
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -72,10 +150,10 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         <div className="animate-fade-in">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2.5">
-              <span className="text-2xl">{categoryInfo.icon}</span>
+              <span className="text-2xl">{categoryInfo?.icon || '🔧'}</span>
               <div>
                 <h2 className="text-xl font-bold text-foreground">{job.title}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{categoryInfo.en} · {categoryInfo.ur}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{categoryInfo?.name || 'Job'} {categoryInfo?.name_ur && `· ${categoryInfo.name_ur}`}</p>
               </div>
             </div>
           </div>
@@ -88,6 +166,9 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 {job.urgency === 'emergency' ? '🚨 Emergency' : '⚡ Urgent'}
               </Badge>
             )}
+            <Badge variant="outline" className="text-xs rounded-lg">
+              {job.budget_type}
+            </Badge>
           </div>
         </div>
 
@@ -98,27 +179,37 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               <div>
                 <p className="text-xs text-muted-foreground font-medium mb-1">Budget Range</p>
                 <p className="text-2xl font-extrabold text-primary">
-                  {formatPKR(job.budget_min)} - {formatPKR(job.budget_max)}
+                  {job.budget_min != null ? formatPKR(job.budget_min) : 'Negotiable'}
+                  {job.budget_max != null && job.budget_min != null && ` - ${formatPKR(job.budget_max)}`}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] text-muted-foreground">Average Rate</p>
-                <div className="bg-white rounded-xl px-3 py-1.5 shadow-sm mt-1">
-                  <p className="text-sm font-bold text-foreground">
-                    {formatPKR(Math.round((job.budget_min + job.budget_max) / 2))}
-                  </p>
+              {job.budget_min != null && job.budget_max != null && (
+                <div className="text-right">
+                  <p className="text-[10px] text-muted-foreground">Average</p>
+                  <div className="bg-white rounded-xl px-3 py-1.5 shadow-sm mt-1">
+                    <p className="text-sm font-bold text-foreground">
+                      {formatPKR(Math.round((job.budget_min + job.budget_max) / 2))}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* Description */}
-        <Card className="border-border/60 animate-fade-in" style={{ animationDelay: '100ms' }}>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-bold text-foreground mb-2">Description</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{job.description}</p>
-          </CardContent>
+        {job.description && (
+          <Card className="border-border/60 animate-fade-in" style={{ animationDelay: '100ms' }}>
+            <CardContent className="p-4">
+              <h3 className="text-sm font-bold text-foreground mb-2">Description</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{job.description}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Map */}
+        <Card className="border-border/60 overflow-hidden animate-fade-in" style={{ animationDelay: '120ms' }}>
+          <Map latitude={mapLat} longitude={mapLng} zoom={14} className="h-52 w-full" />
         </Card>
 
         {/* Location & Time */}
@@ -129,9 +220,8 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 <MapPin className="h-4 w-4 text-green-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{job.area}</p>
+                <p className="text-sm font-medium text-foreground">{job.area || job.city}</p>
                 {job.address && <p className="text-xs text-muted-foreground truncate">{job.address}</p>}
-                {job.distance && <p className="text-xs text-primary font-semibold mt-0.5">{job.distance} away</p>}
               </div>
             </div>
             <Separator className="my-1" />
@@ -142,28 +232,26 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               <div>
                 <p className="text-sm font-medium text-foreground">Posted {formatTimeAgo(job.created_at)}</p>
                 {job.scheduled_date && (
-                  <p className="text-xs text-muted-foreground">Scheduled: {job.scheduled_date}</p>
+                  <p className="text-xs text-muted-foreground">Scheduled: {job.scheduled_date}{job.scheduled_time ? ` at ${job.scheduled_time}` : ''}</p>
+                )}
+                {job.duration && (
+                  <p className="text-xs text-muted-foreground">Duration: {job.duration}</p>
                 )}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Requirements */}
-        {job.requirements && job.requirements.length > 0 && (
-          <Card className="border-border/60 animate-fade-in" style={{ animationDelay: '200ms' }}>
+        {/* Skills Required */}
+        {job.skills_required && job.skills_required.length > 0 && (
+          <Card className="border-border/60 animate-fade-in" style={{ animationDelay: '180ms' }}>
             <CardContent className="p-4">
-              <h3 className="text-sm font-bold text-foreground mb-3">Requirements</h3>
-              <ul className="space-y-2.5">
-                {job.requirements.map((req, i) => (
-                  <li key={i} className="flex items-start gap-2.5">
-                    <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="h-3 w-3 text-green-600" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">{req}</span>
-                  </li>
+              <h3 className="text-sm font-bold text-foreground mb-3">Skills Required</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {job.skills_required.map((skill, i) => (
+                  <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground">{skill}</span>
                 ))}
-              </ul>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -177,19 +265,14 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 <User className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{job.employer_name}</p>
-                {job.employer_rating && (
+                <p className="text-sm font-semibold text-foreground">{employerName}</p>
+                {employerRating != null && (
                   <div className="flex items-center gap-1 mt-1">
                     <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs text-muted-foreground">{job.employer_rating} employer rating</span>
+                    <span className="text-xs text-muted-foreground">{Number(employerRating).toFixed(1)} employer rating</span>
                   </div>
                 )}
               </div>
-              {job.employer_phone && (
-                <a href={`tel:${job.employer_phone}`} className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                  <Phone className="h-4 w-4 text-green-600" />
-                </a>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -214,7 +297,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           <DialogHeader>
             <DialogTitle>Place Your Bid</DialogTitle>
             <DialogDescription>
-              {job.title} · {categoryInfo.en}
+              {job.title} · {categoryInfo?.name}
             </DialogDescription>
           </DialogHeader>
 
@@ -230,7 +313,10 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
             <div className="space-y-4 mt-2">
               <div className="bg-green-50 rounded-xl p-4 text-center">
                 <p className="text-xs text-muted-foreground font-medium">Budget Range</p>
-                <p className="text-lg font-bold text-primary mt-1">{formatPKR(job.budget_min)} - {formatPKR(job.budget_max)}</p>
+                <p className="text-lg font-bold text-primary mt-1">
+                  {job.budget_min != null ? formatPKR(job.budget_min) : 'Negotiable'}
+                  {job.budget_max != null && job.budget_min != null && ` - ${formatPKR(job.budget_max)}`}
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -240,8 +326,6 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                   placeholder="Enter your bid amount"
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
-                  min={job.budget_min}
-                  max={job.budget_max}
                   className="h-11 rounded-xl"
                 />
               </div>
@@ -261,23 +345,19 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 className="w-full h-12 rounded-xl font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-600/25"
                 size="lg"
                 onClick={handleSubmitBid}
-                disabled={!bidAmount}
+                disabled={!bidAmount || submitting}
               >
-                <Send className="h-4 w-4 mr-2" />
-                Submit Bid
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Send className="h-4 w-4 mr-2" />
+                )}
+                {submitting ? 'Submitting...' : 'Submit Bid'}
               </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
     </div>
-  )
-}
-
-function Phone(props: React.SVGProps<SVGSVGElement> & { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-    </svg>
   )
 }

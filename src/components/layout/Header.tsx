@@ -2,7 +2,6 @@
 
 import { Bell, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { mockNotifications } from '@/data/mock'
 
 interface HeaderProps {
   title: string
@@ -12,7 +11,6 @@ interface HeaderProps {
 
 export default function Header({ title, showBack = false, showNotifications = false }: HeaderProps) {
   const router = useRouter()
-  const unreadCount = mockNotifications.filter(n => !n.is_read).length
 
   return (
     <header className="sticky top-0 z-40 glass border-b border-border/50">
@@ -36,11 +34,6 @@ export default function Header({ title, showBack = false, showNotifications = fa
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
-                {unreadCount}
-              </span>
-            )}
           </button>
         )}
       </div>

@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import Header from '@/components/layout/Header'
 import TransactionItem from '@/components/wallet/TransactionItem'
-import { mockWorker, mockTransactions } from '@/data/mock'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { getTransactions, requestWithdrawal } from '@/lib/services'
+import type { Transaction } from '@/types'
 import { formatPKR } from '@/lib/utils'
 import {
   Dialog,
@@ -22,28 +24,68 @@ import { TrendingUp, ArrowUpFromLine, Minus, CheckCircle2, History } from 'lucid
 import Link from 'next/link'
 
 export default function WalletPage() {
+  const { workerProfile } = useAuth()
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [withdrawMethod, setWithdrawMethod] = useState<'jazzcash' | 'easypaisa' | 'bank'>('jazzcash')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawAccount, setWithdrawAccount] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const balance = mockWorker.wallet_balance
-  const totalEarnings = mockTransactions.filter(t => t.type === 'earning').reduce((s, t) => s + t.amount, 0)
-  const totalWithdrawals = mockTransactions.filter(t => t.type === 'withdrawal').reduce((s, t) => s + Math.abs(t.amount), 0)
-  const totalCommission = mockTransactions.filter(t => t.type === 'commission').reduce((s, t) => s + Math.abs(t.amount), 0)
+  useEffect(() => {
+    async function fetchData() {
+      if (!workerProfile) return
+      try {
+        const data = await getTransactions(workerProfile.id)
+        setTransactions(data)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (workerProfile) fetchData()
+  }, [workerProfile])
 
-  const handleWithdraw = () => {
-    if (!withdrawAmount || !withdrawAccount) return
-    const amount = parseInt(withdrawAmount)
+  const balance = Number(workerProfile?.wallet_balance || 0)
+  const totalEarnings = transactions.filter(t => t.type === 'earning').reduce((s, t) => s + t.amount, 0)
+  const totalWithdrawals = transactions.filter(t => t.type === 'withdrawal').reduce((s, t) => s + Math.abs(t.amount), 0)
+  const totalCommission = transactions.filter(t => t.type === 'commission').reduce((s, t) => s + Math.abs(t.amount), 0)
+
+  const handleWithdraw = async () => {
+    if (!withdrawAmount || !withdrawAccount || !workerProfile) return
+    const amount = parseFloat(withdrawAmount)
     if (amount <= 0 || amount > balance) return
-    setSubmitted(true)
-    setTimeout(() => {
-      setShowWithdraw(false)
-      setSubmitted(false)
-      setWithdrawAmount('')
-      setWithdrawAccount('')
-    }, 2000)
+    setSubmitting(true)
+    try {
+      await requestWithdrawal(workerProfile.id, amount, withdrawMethod, withdrawAccount)
+      setSubmitted(true)
+      setTimeout(() => {
+        setShowWithdraw(false)
+        setSubmitted(false)
+        setWithdrawAmount('')
+        setWithdrawAccount('')
+      }, 2000)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50">
+        <Header title="Wallet" />
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+          <div className="h-48 bg-gray-200 rounded-2xl animate-pulse" />
+          <div className="h-32 bg-gray-200 rounded-2xl animate-pulse" />
+          <div className="h-64 bg-gray-200 rounded-2xl animate-pulse" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -54,7 +96,6 @@ export default function WalletPage() {
         {/* Balance Card */}
         <Card className="bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 border-0 text-white overflow-hidden shadow-lg shadow-green-600/20">
           <CardContent className="p-5 relative">
-            {/* Decorative */}
             <div className="absolute top-0 right-0 h-32 w-32 bg-white/5 rounded-full -mr-10 -mt-10" />
             <div className="absolute bottom-0 left-0 h-24 w-24 bg-white/5 rounded-full -ml-8 -mb-8" />
 
@@ -117,16 +158,24 @@ export default function WalletPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-foreground">Transaction History</h3>
-              <span className="text-[10px] text-muted-foreground">{mockTransactions.length} transactions</span>
+              <span className="text-[10px] text-muted-foreground">{transactions.length} transactions</span>
             </div>
-            <div className="max-h-96 overflow-y-auto">
-              {mockTransactions.map(tx => (
-                <div key={tx.id}>
-                  <TransactionItem transaction={tx} />
-                  <Separator />
-                </div>
-              ))}
-            </div>
+            {transactions.length > 0 ? (
+              <div className="max-h-96 overflow-y-auto">
+                {transactions.map(tx => (
+                  <div key={tx.id}>
+                    <TransactionItem transaction={tx} />
+                    <Separator />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <div className="text-4xl mb-3">💰</div>
+                <p className="text-sm font-semibold text-foreground">No transactions yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Complete jobs to start earning</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -214,9 +263,9 @@ export default function WalletPage() {
                 className="w-full h-12 rounded-xl font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-600/25"
                 size="lg"
                 onClick={handleWithdraw}
-                disabled={!withdrawAmount || !withdrawAccount || parseInt(withdrawAmount) > balance}
+                disabled={!withdrawAmount || !withdrawAccount || parseFloat(withdrawAmount) > balance || submitting}
               >
-                Withdraw {withdrawAmount ? formatPKR(parseInt(withdrawAmount)) : 'Money'}
+                {submitting ? 'Processing...' : `Withdraw ${withdrawAmount ? formatPKR(parseFloat(withdrawAmount)) : 'Money'}`}
               </Button>
             </div>
           )}

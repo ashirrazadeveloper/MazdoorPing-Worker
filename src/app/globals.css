@@ -112,3 +112,8 @@
 .press-effect:active {
   transform: scale(0.97);
 }
+
+/* Leaflet CSS fix */
+.leaflet-container {
+  z-index: 1;
+}

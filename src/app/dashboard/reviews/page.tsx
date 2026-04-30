@@ -1,28 +1,61 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import Header from '@/components/layout/Header'
-import { mockWorker, mockReviews } from '@/data/mock'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { getWorkerReviews } from '@/lib/services'
+import type { Review } from '@/types'
 import { formatTimeAgo } from '@/lib/utils'
 import { Star, User } from 'lucide-react'
 
 export default function ReviewsPage() {
+  const { workerProfile } = useAuth()
+  const [reviews, setReviews] = useState<Review[]>([])
   const [selectedRating, setSelectedRating] = useState<number | 'all'>('all')
+  const [loading, setLoading] = useState(true)
 
-  const avgRating = mockWorker.rating
-  const totalReviews = mockWorker.total_reviews
+  useEffect(() => {
+    async function fetchData() {
+      if (!workerProfile) return
+      try {
+        const data = await getWorkerReviews(workerProfile.id)
+        setReviews(data)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (workerProfile) fetchData()
+  }, [workerProfile])
 
-  // Rating distribution
+  const avgRating = workerProfile ? Number(workerProfile.rating).toFixed(1) : '0.0'
+  const totalReviews = workerProfile?.total_reviews || 0
+
   const ratingDist = [5, 4, 3, 2, 1].map(rating => ({
     rating,
-    count: mockReviews.filter(r => r.rating === rating).length,
+    count: reviews.filter(r => r.rating === rating).length,
   }))
 
   const filteredReviews = useMemo(() => {
-    if (selectedRating === 'all') return mockReviews
-    return mockReviews.filter(r => r.rating === selectedRating)
-  }, [selectedRating])
+    if (selectedRating === 'all') return reviews
+    return reviews.filter(r => r.rating === selectedRating)
+  }, [reviews, selectedRating])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50">
+        <Header title="Reviews" showBack={true} />
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+          <div className="h-36 bg-gray-200 rounded-2xl animate-pulse" />
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-28 bg-gray-200 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -40,7 +73,7 @@ export default function ReviewsPage() {
                     <Star
                       key={star}
                       className={`h-5 w-5 ${
-                        star <= Math.round(avgRating)
+                        star <= Math.round(Number(avgRating))
                           ? 'fill-yellow-400 text-yellow-400'
                           : 'fill-gray-200 text-gray-200'
                       }`}
@@ -80,7 +113,7 @@ export default function ReviewsPage() {
             All ({totalReviews})
           </button>
           {[5, 4, 3, 2, 1].map(r => {
-            const count = mockReviews.filter(rev => rev.rating === r).length
+            const count = reviews.filter(rev => rev.rating === r).length
             return (
               <button
                 key={r}
@@ -108,7 +141,9 @@ export default function ReviewsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-foreground">{review.employer_name}</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {review.is_anonymous ? 'Anonymous' : review.employer?.full_name || 'Employer'}
+                      </p>
                       <span className="text-[10px] text-muted-foreground shrink-0">{formatTimeAgo(review.created_at)}</span>
                     </div>
                     <div className="flex items-center gap-0.5 mt-1">
@@ -123,7 +158,9 @@ export default function ReviewsPage() {
                         />
                       ))}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{review.comment}</p>
+                    {review.comment && (
+                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{review.comment}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>

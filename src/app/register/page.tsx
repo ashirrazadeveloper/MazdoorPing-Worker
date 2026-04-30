@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Lock, Eye, EyeOff, User, CreditCard, MapPin, CheckCircle2, HardHat } from 'lucide-react'
+import { Lock, Eye, EyeOff, User, CreditCard, MapPin, CheckCircle2, HardHat, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { WORKER_CATEGORIES, type WorkerCategory } from '@/types'
+import { signUpWithPhone, getCategories } from '@/lib/services'
+import { supabase } from '@/lib/supabase'
+import type { Category } from '@/types'
 
 const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan', 'Peshawar', 'Quetta', 'Sialkot', 'Gujranwala']
 
@@ -18,7 +20,11 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [selectedCategories, setSelectedCategories] = useState<WorkerCategory[]>([])
+  const [success, setSuccess] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
+  const [skills, setSkills] = useState<string[]>([])
+  const [skillInput, setSkillInput] = useState('')
 
   const [form, setForm] = useState({
     name: '',
@@ -29,18 +35,29 @@ export default function RegisterPage() {
     city: 'Lahore',
     experience: '5',
     bio: '',
-    skills: '',
+    area: '',
+    baseRate: '500',
   })
+
+  useEffect(() => {
+    getCategories().then(setCategories).catch(console.error)
+  }, [])
 
   const updateForm = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
     setError('')
   }
 
-  const toggleCategory = (cat: WorkerCategory) => {
-    setSelectedCategories(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-    )
+  const addSkill = () => {
+    const trimmed = skillInput.trim()
+    if (trimmed && !skills.includes(trimmed) && skills.length < 10) {
+      setSkills(prev => [...prev, trimmed])
+      setSkillInput('')
+    }
+  }
+
+  const removeSkill = (skill: string) => {
+    setSkills(prev => prev.filter(s => s !== skill))
   }
 
   const handleNext = () => {
@@ -77,8 +94,8 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      if (selectedCategories.length === 0) {
-        setError('Please select at least one category')
+      if (!selectedCategoryId) {
+        setError('Please select a category')
         setLoading(false)
         return
       }
@@ -88,23 +105,84 @@ export default function RegisterPage() {
         return
       }
 
-      // Simulate registration delay
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      const formattedPhone = form.phone.startsWith('+92') ? form.phone : `+92${form.phone.replace(/^0/, '')}`
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('mazdoorping_user', JSON.stringify({
-          id: 'worker-new',
-          name: form.name,
-          phone: form.phone,
-          isAuthenticated: true,
-        }))
+      // Step 1: Sign up with Supabase Auth
+      const { data: authData, error: authError } = await signUpWithPhone(formattedPhone, form.password, {
+        full_name: form.name,
+        role: 'worker',
+        phone: formattedPhone,
+      })
+
+      if (authError) {
+        setError(authError.message || 'Registration failed. Please try again.')
+        setLoading(false)
+        return
       }
-      router.push('/dashboard')
-    } catch {
+
+      const authUser = authData.user
+      if (!authUser) {
+        setError('Registration failed. No user created.')
+        setLoading(false)
+        return
+      }
+
+      // Step 2: Insert into workers table with status='pending'
+      const { error: workerError } = await supabase.from('workers').insert({
+        id: authUser.id,
+        category_id: selectedCategoryId,
+        city: form.city,
+        area: form.area || null,
+        cnic: form.cnic,
+        bio: form.bio || null,
+        experience_years: parseInt(form.experience) || 0,
+        base_rate: parseInt(form.baseRate) || 500,
+        status: 'pending',
+        is_verified: false,
+        is_available: true,
+      })
+
+      if (workerError) {
+        console.error('Worker insert error:', workerError)
+        setError('Registration failed. Could not create worker profile.')
+        setLoading(false)
+        return
+      }
+
+      // Step 3: Insert skills
+      if (skills.length > 0) {
+        await supabase.from('worker_skills').insert(
+          skills.map(skill => ({ worker_id: authUser.id, skill }))
+        )
+      }
+
+      setSuccess(true)
+      setTimeout(() => {
+        router.push('/login')
+      }, 3000)
+    } catch (err) {
+      console.error('Registration error:', err)
       setError('Registration failed. Please try again.')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center px-6">
+        <div className="max-w-sm w-full text-center animate-fade-in">
+          <div className="h-20 w-20 rounded-3xl bg-green-100 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="h-10 w-10 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-foreground mb-2">Registration Successful!</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            Your account has been created and is pending verification. You can now login with your credentials.
+          </p>
+          <p className="text-xs text-green-600 font-medium">Redirecting to login...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -265,24 +343,23 @@ export default function RegisterPage() {
                 <Label>Select Your Category *</Label>
                 <p className="text-[11px] text-muted-foreground">Choose the type of work you do</p>
                 <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                  {(Object.keys(WORKER_CATEGORIES) as WorkerCategory[]).map((cat) => {
-                    const info = WORKER_CATEGORIES[cat]
-                    const isSelected = selectedCategories.includes(cat)
+                  {categories.map((cat) => {
+                    const isSelected = selectedCategoryId === cat.id
                     return (
                       <button
-                        key={cat}
+                        key={cat.id}
                         type="button"
-                        onClick={() => toggleCategory(cat)}
+                        onClick={() => setSelectedCategoryId(isSelected ? '' : cat.id)}
                         className={`flex items-center gap-2 p-2.5 rounded-xl border text-sm transition-all duration-200 ${
                           isSelected
                             ? 'border-primary bg-green-50 text-primary shadow-sm'
                             : 'border-border bg-background hover:border-primary/40 text-foreground'
                         }`}
                       >
-                        <span className="text-base">{info.icon}</span>
+                        <span className="text-base">{cat.icon || '🔧'}</span>
                         <div className="text-left min-w-0 flex-1">
-                          <span className="text-xs font-medium block truncate">{info.en}</span>
-                          <span className="text-[10px] text-muted-foreground block">{info.ur}</span>
+                          <span className="text-xs font-medium block truncate">{cat.name}</span>
+                          {cat.name_ur && <span className="text-[10px] text-muted-foreground block">{cat.name_ur}</span>}
                         </div>
                         {isSelected && <CheckCircle2 className="h-3.5 w-3.5 ml-auto shrink-0 text-primary" />}
                       </button>
@@ -311,14 +388,43 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="skills">Skills (comma separated)</Label>
+                <Label htmlFor="area">Area</Label>
                 <Input
-                  id="skills"
-                  placeholder="Wiring, Panel Installation, AC Repair..."
-                  value={form.skills}
-                  onChange={(e) => updateForm('skills', e.target.value)}
+                  id="area"
+                  placeholder="e.g. Gulberg III"
+                  value={form.area}
+                  onChange={(e) => updateForm('area', e.target.value)}
                   className="h-11 rounded-xl"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="skills">Skills</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="skills"
+                    placeholder="Add a skill..."
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill() } }}
+                    className="h-11 rounded-xl flex-1"
+                  />
+                  <Button type="button" variant="outline" onClick={addSkill} className="h-11 w-11 rounded-xl p-0 shrink-0">
+                    +
+                  </Button>
+                </div>
+                {skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {skills.map(skill => (
+                      <span key={skill} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                        {skill}
+                        <button type="button" onClick={() => removeSkill(skill)} className="hover:text-red-500">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -333,13 +439,25 @@ export default function RegisterPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="baseRate">Base Rate (PKR/day)</Label>
+                <Input
+                  id="baseRate"
+                  type="number"
+                  placeholder="500"
+                  value={form.baseRate}
+                  onChange={(e) => updateForm('baseRate', e.target.value)}
+                  className="h-11 rounded-xl"
+                />
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={handleBack} className="flex-1 h-12 rounded-xl font-medium">
                   Back
                 </Button>
                 <Button type="submit" className="flex-1 h-12 text-base font-semibold rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-600/25" disabled={loading}>
                   {loading ? (
-                    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     'Create Account'
                   )}

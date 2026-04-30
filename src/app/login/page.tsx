@@ -7,6 +7,7 @@ import { Phone, Lock, Eye, EyeOff, HardHat } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { signInWithPhone } from '@/lib/services'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -28,18 +29,16 @@ export default function LoginPage() {
         return
       }
 
-      // Simulate login delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const formattedPhone = phone.startsWith('+92') ? phone : `+92${phone.replace(/^0/, '')}`
 
-      // Store mock user
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('mazdoorping_user', JSON.stringify({
-          id: 'worker-001',
-          name: 'Muhammad Ali',
-          phone: phone || '03001234567',
-          isAuthenticated: true,
-        }))
+      const { error: authError } = await signInWithPhone(formattedPhone, password)
+
+      if (authError) {
+        setError(authError.message || 'Login failed. Please check your credentials.')
+        setLoading(false)
+        return
       }
+
       router.push('/dashboard')
     } catch {
       setError('Login failed. Please try again.')
@@ -103,9 +102,6 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-xs font-semibold">Password</Label>
-                <button type="button" className="text-xs text-primary font-medium hover:underline">
-                  Forgot Password?
-                </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -136,14 +132,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-        </div>
-
-        {/* Demo credentials */}
-        <div className="max-w-md mx-auto mt-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
-          <div className="bg-green-50 border border-green-200/60 rounded-xl p-3 text-center">
-            <p className="text-xs text-green-700 font-semibold">Demo Mode</p>
-            <p className="text-xs text-green-600 mt-0.5">Enter any phone & password to continue</p>
-          </div>
         </div>
 
         {/* Register link */}

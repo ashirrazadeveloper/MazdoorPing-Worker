@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import {
-  AlertTriangle, Phone, MapPin, Navigation,
+  AlertTriangle, Phone,
   Ambulance, ShieldAlert, UserX, Car, AlertOctagon
 } from 'lucide-react'
-import { mockWorker } from '@/data/mock'
-import type { AlertType } from '@/types'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { createSOSAlert, getMySOSAlerts } from '@/lib/services'
+import type { SOSAlert, AlertType } from '@/types'
+import { formatTimeAgo } from '@/lib/utils'
 
 const alertTypes: { type: AlertType; label: string; labelUr: string; icon: typeof AlertTriangle; color: string }[] = [
   { type: 'emergency', label: 'Medical Emergency', labelUr: 'طبی ایمرجنسی', icon: Ambulance, color: 'bg-red-100 text-red-700 border-red-300' },
@@ -24,17 +26,73 @@ const emergencyContacts = [
 ]
 
 export default function SOSPage() {
+  const { workerProfile } = useAuth()
   const [selectedAlert, setSelectedAlert] = useState<AlertType>('emergency')
+  const [message, setMessage] = useState('')
+  const [emergencyContact, setEmergencyContact] = useState('')
   const [alertSent, setAlertSent] = useState(false)
-  const [locationStatus, setLocationStatus] = useState<'idle' | 'fetching' | 'done'>('idle')
+  const [sending, setSending] = useState(false)
+  const [sosAlerts, setSosAlerts] = useState<SOSAlert[]>([])
+
+  useEffect(() => {
+    if (workerProfile) {
+      getMySOSAlerts(workerProfile.id).then(setSosAlerts).catch(console.error)
+    }
+  }, [workerProfile])
 
   const sendSOS = async () => {
-    setLocationStatus('fetching')
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setLocationStatus('done')
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setAlertSent(true)
-    setTimeout(() => setAlertSent(false), 5000)
+    if (!workerProfile) return
+    setSending(true)
+
+    try {
+      // Get current location
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      })
+
+      const lat = pos.coords.latitude
+      const lng = pos.coords.longitude
+
+      await createSOSAlert(workerProfile.id, {
+        type: selectedAlert,
+        latitude: lat,
+        longitude: lng,
+        address: `${workerProfile.area || ''}, ${workerProfile.city}`,
+        message: message || `SOS - ${selectedAlert} alert from ${workerProfile.city}`,
+        emergency_contact: emergencyContact,
+      })
+
+      setAlertSent(true)
+
+      // Refresh alerts list
+      const updatedAlerts = await getMySOSAlerts(workerProfile.id)
+      setSosAlerts(updatedAlerts)
+
+      setTimeout(() => {
+        setAlertSent(false)
+        setMessage('')
+      }, 5000)
+    } catch (err) {
+      console.error('SOS error:', err)
+      // Still try to send SOS without location
+      if (workerProfile) {
+        await createSOSAlert(workerProfile.id, {
+          type: selectedAlert,
+          latitude: workerProfile.latitude || 31.5204,
+          longitude: workerProfile.longitude || 74.3587,
+          address: `${workerProfile.area || ''}, ${workerProfile.city}`,
+          message: message || `SOS - ${selectedAlert} alert from ${workerProfile.city}`,
+          emergency_contact: emergencyContact,
+        })
+        setAlertSent(true)
+        setTimeout(() => {
+          setAlertSent(false)
+          setMessage('')
+        }, 5000)
+      }
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -98,6 +156,26 @@ export default function SOSPage() {
           </CardContent>
         </Card>
 
+        {/* Message input */}
+        <Card className="border-border/60 animate-fade-in" style={{ animationDelay: '75ms' }}>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-bold text-foreground mb-2">Additional Details</h3>
+            <textarea
+              placeholder="Describe your emergency (optional)..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            />
+            <input
+              placeholder="Emergency contact number (optional)"
+              value={emergencyContact}
+              onChange={(e) => setEmergencyContact(e.target.value)}
+              className="w-full mt-2 h-10 rounded-xl border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </CardContent>
+        </Card>
+
         {/* SOS Button */}
         <div className="flex flex-col items-center py-4">
           {alertSent ? (
@@ -113,23 +191,21 @@ export default function SOSPage() {
             <>
               <button
                 onClick={sendSOS}
-                className="h-28 w-28 rounded-full bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 active:scale-95 transition-all flex items-center justify-center shadow-2xl shadow-red-500/40 animate-pulse-sos"
+                disabled={sending}
+                className="h-28 w-28 rounded-full bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 active:scale-95 transition-all flex items-center justify-center shadow-2xl shadow-red-500/40 animate-pulse-sos disabled:opacity-50"
               >
-                <span className="text-white text-3xl font-black tracking-wider">SOS</span>
+                {sending ? (
+                  <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span className="text-white text-3xl font-black tracking-wider">SOS</span>
+                )}
               </button>
               <p className="text-sm text-red-600 font-semibold mt-5">
-                Tap to send emergency alert
+                {sending ? 'Sending alert...' : 'Tap to send emergency alert'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Your GPS location will be shared with emergency contacts
               </p>
-
-              {locationStatus === 'fetching' && (
-                <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground animate-fade-in">
-                  <Navigation className="h-4 w-4 animate-pulse" />
-                  Getting your location...
-                </div>
-              )}
             </>
           )}
         </div>
@@ -159,29 +235,38 @@ export default function SOSPage() {
           </CardContent>
         </Card>
 
-        {/* Location Status */}
-        <Card className="border-border/60 animate-fade-in" style={{ animationDelay: '150ms' }}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                locationStatus === 'done' ? 'bg-green-100' : 'bg-muted'
-              }`}>
-                <MapPin className={`h-5 w-5 ${locationStatus === 'done' ? 'text-green-600' : 'text-muted-foreground'}`} />
+        {/* SOS History */}
+        {sosAlerts.length > 0 && (
+          <Card className="border-border/60 animate-fade-in" style={{ animationDelay: '125ms' }}>
+            <CardContent className="p-4">
+              <h3 className="text-sm font-bold text-foreground mb-3">SOS History</h3>
+              <div className="space-y-2">
+                {sosAlerts.slice(0, 5).map(alert => (
+                  <div key={alert.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      alert.status === 'active' ? 'bg-red-100' : alert.status === 'resolved' ? 'bg-green-100' : 'bg-yellow-100'
+                    }`}>
+                      <AlertTriangle className={`h-4 w-4 ${
+                        alert.status === 'active' ? 'text-red-600' : alert.status === 'resolved' ? 'text-green-600' : 'text-yellow-600'
+                      }`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{alert.type.charAt(0).toUpperCase() + alert.type.slice(1)}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatTimeAgo(alert.created_at)}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                      alert.status === 'active' ? 'bg-red-100 text-red-700'
+                        : alert.status === 'resolved' ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {alert.status}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {locationStatus === 'done' ? 'Location Shared ✓' : 'GPS Location'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {locationStatus === 'done'
-                    ? `${mockWorker.area}, ${mockWorker.city}`
-                    : 'Location will be captured when you press SOS'
-                  }
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Safety Tips */}
         <Card className="border-yellow-200/60 bg-yellow-50/50 animate-fade-in" style={{ animationDelay: '200ms' }}>

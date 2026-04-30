@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import Header from '@/components/layout/Header'
-import { mockNotifications } from '@/data/mock'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from '@/lib/services'
+import type { Notification } from '@/types'
 import { formatTimeAgo } from '@/lib/utils'
 import { CheckCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Info, DollarSign, type LucideIcon } from 'lucide-react'
 
@@ -17,16 +19,57 @@ const notifIcons: Record<string, { icon: LucideIcon; color: string }> = {
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const { user } = useAuth()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!user) return
+      try {
+        const data = await getNotifications(user.id)
+        setNotifications(data)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (user) fetchData()
+  }, [user])
 
   const unreadCount = notifications.filter(n => !n.is_read).length
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+  const markAllRead = async () => {
+    if (!user) return
+    try {
+      await markAllNotificationsRead(user.id)
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+  const markAsRead = async (id: string) => {
+    try {
+      await markNotificationRead(id)
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50">
+        <Header title="Notifications" showBack={true} />
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-20 bg-gray-200 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -69,7 +112,7 @@ export default function NotificationsPage() {
               >
                 <div className="flex items-start gap-3">
                   <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${iconInfo.color}`}>
-                    <Icon className="h-4.5 w-4.5" />
+                    <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">

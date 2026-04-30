@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Header from '@/components/layout/Header'
 import JobCard from '@/components/jobs/JobCard'
-import { mockJobs } from '@/data/mock'
-import { WORKER_CATEGORIES, type WorkerCategory } from '@/types'
+import { getAvailableJobs, getCategories } from '@/lib/services'
+import type { Job, Category } from '@/types'
 import {
   Dialog,
   DialogContent,
@@ -21,31 +21,44 @@ const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'M
 
 export default function FindJobsPage() {
   const [search, setSearch] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<WorkerCategory | 'all'>('all')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [selectedCity, setSelectedCity] = useState('Lahore')
   const [budgetMin, setBudgetMin] = useState('')
   const [budgetMax, setBudgetMax] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const openJobs = mockJobs.filter(j => j.status === 'open')
+  useEffect(() => {
+    getCategories().then(setCategories).catch(console.error)
+  }, [])
+
+  useEffect(() => {
+    async function fetchJobs() {
+      setLoading(true)
+      try {
+        const filters: Record<string, string> = { city: selectedCity }
+        if (selectedCategory !== 'all') filters.category_id = selectedCategory
+        if (search) filters.search = search
+        const data = await getAvailableJobs(filters)
+        setJobs(data)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchJobs()
+  }, [selectedCategory, selectedCity, search])
 
   const filteredJobs = useMemo(() => {
-    return openJobs.filter(job => {
-      const matchesSearch = !search ||
-        job.title.toLowerCase().includes(search.toLowerCase()) ||
-        job.description.toLowerCase().includes(search.toLowerCase()) ||
-        job.area.toLowerCase().includes(search.toLowerCase())
-
-      const matchesCategory = selectedCategory === 'all' || job.category === selectedCategory
-
-      const matchesCity = job.city === selectedCity
-
-      const matchesBudgetMin = !budgetMin || job.budget_min >= parseInt(budgetMin)
-      const matchesBudgetMax = !budgetMax || job.budget_max <= parseInt(budgetMax)
-
-      return matchesSearch && matchesCategory && matchesCity && matchesBudgetMin && matchesBudgetMax
+    return jobs.filter(job => {
+      const matchesBudgetMin = !budgetMin || (job.budget_min != null && job.budget_min >= parseInt(budgetMin))
+      const matchesBudgetMax = !budgetMax || (job.budget_max != null && job.budget_max <= parseInt(budgetMax))
+      return matchesBudgetMin && matchesBudgetMax
     })
-  }, [search, selectedCategory, selectedCity, budgetMin, budgetMax, openJobs])
+  }, [jobs, budgetMin, budgetMax])
 
   const activeFilterCount = [
     selectedCategory !== 'all',
@@ -93,7 +106,7 @@ export default function FindJobsPage() {
           <div className="flex items-center gap-2 flex-wrap animate-fade-in">
             {selectedCategory !== 'all' && (
               <Badge variant="secondary" className="gap-1 rounded-lg px-3 py-1">
-                {WORKER_CATEGORIES[selectedCategory].icon} {WORKER_CATEGORIES[selectedCategory].en}
+                {categories.find(c => c.id === selectedCategory)?.icon} {categories.find(c => c.id === selectedCategory)?.name}
                 <button onClick={() => setSelectedCategory('all')}><X className="h-3 w-3 ml-0.5" /></button>
               </Badge>
             )}
@@ -121,18 +134,18 @@ export default function FindJobsPage() {
           >
             All
           </button>
-          {(['electrician', 'plumber', 'carpenter', 'painter', 'ac_technician', 'welder', 'cleaner', 'mason', 'laborer'] as WorkerCategory[]).map(cat => (
+          {categories.slice(0, 9).map(cat => (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat === selectedCategory ? 'all' : cat)}
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id === selectedCategory ? 'all' : cat.id)}
               className={`shrink-0 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
-                selectedCategory === cat
+                selectedCategory === cat.id
                   ? 'bg-primary text-white shadow-md shadow-primary/25'
                   : 'bg-white border border-border text-muted-foreground hover:border-primary/50'
               }`}
             >
-              <span>{WORKER_CATEGORIES[cat].icon}</span>
-              {WORKER_CATEGORIES[cat].en}
+              <span>{cat.icon}</span>
+              {cat.name}
             </button>
           ))}
         </div>
@@ -140,7 +153,7 @@ export default function FindJobsPage() {
         {/* Results count */}
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {filteredJobs.length} job{filteredJobs.length !== 1 ? 's' : ''} found
+            {loading ? 'Searching...' : `${filteredJobs.length} job${filteredJobs.length !== 1 ? 's' : ''} found`}
           </p>
           <Badge variant="outline" className="text-[10px] rounded-lg px-2 py-0.5">
             📍 {selectedCity}
@@ -149,7 +162,13 @@ export default function FindJobsPage() {
 
         {/* Job list */}
         <div className="space-y-3">
-          {filteredJobs.length > 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-36 bg-gray-200 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : filteredJobs.length > 0 ? (
             filteredJobs.map((job, idx) => (
               <div key={job.id} className="animate-slide-up" style={{ animationDelay: `${idx * 60}ms` }}>
                 <JobCard job={job} />
@@ -217,13 +236,13 @@ export default function FindJobsPage() {
               <label className="text-sm font-semibold">Category</label>
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value as WorkerCategory | 'all')}
+                onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="all">All Categories</option>
-                {(Object.keys(WORKER_CATEGORIES) as WorkerCategory[]).map(cat => (
-                  <option key={cat} value={cat}>
-                    {WORKER_CATEGORIES[cat].icon} {WORKER_CATEGORIES[cat].en}
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon} {cat.name}
                   </option>
                 ))}
               </select>

@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 
-const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan', 'Peshawar']
+const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan', 'Peshawar', 'Quetta']
 
 export default function FindJobsPage() {
   const [search, setSearch] = useState('')
@@ -60,23 +60,23 @@ export default function FindJobsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50/50">
       <Header title="Find Jobs" />
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search jobs, areas..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 pr-12 h-11"
+            className="pl-10 pr-12 h-11 rounded-xl bg-white border-border/60"
           />
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl"
             onClick={() => setShowFilters(true)}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -90,20 +90,20 @@ export default function FindJobsPage() {
 
         {/* Active filters */}
         {activeFilterCount > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap animate-fade-in">
             {selectedCategory !== 'all' && (
-              <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="gap-1 rounded-lg px-3 py-1">
                 {WORKER_CATEGORIES[selectedCategory].icon} {WORKER_CATEGORIES[selectedCategory].en}
-                <button onClick={() => setSelectedCategory('all')}><X className="h-3 w-3" /></button>
+                <button onClick={() => setSelectedCategory('all')}><X className="h-3 w-3 ml-0.5" /></button>
               </Badge>
             )}
             {(budgetMin || budgetMax) && (
-              <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="gap-1 rounded-lg px-3 py-1">
                 PKR {budgetMin || '0'}-{budgetMax || '∞'}
-                <button onClick={() => { setBudgetMin(''); setBudgetMax('') }}><X className="h-3 w-3" /></button>
+                <button onClick={() => { setBudgetMin(''); setBudgetMax('') }}><X className="h-3 w-3 ml-0.5" /></button>
               </Badge>
             )}
-            <button onClick={clearFilters} className="text-xs text-primary font-medium hover:underline">
+            <button onClick={clearFilters} className="text-xs text-primary font-semibold hover:underline">
               Clear all
             </button>
           </div>
@@ -113,25 +113,26 @@ export default function FindJobsPage() {
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
           <button
             onClick={() => setSelectedCategory('all')}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${
               selectedCategory === 'all'
-                ? 'bg-primary text-white'
-                : 'bg-white border border-border text-muted-foreground hover:border-primary'
+                ? 'bg-primary text-white shadow-md shadow-primary/25'
+                : 'bg-white border border-border text-muted-foreground hover:border-primary/50'
             }`}
           >
             All
           </button>
-          {(['electrician', 'plumber', 'carpenter', 'painter', 'ac_technician', 'welder', 'cleaner', 'mason'] as WorkerCategory[]).map(cat => (
+          {(['electrician', 'plumber', 'carpenter', 'painter', 'ac_technician', 'welder', 'cleaner', 'mason', 'laborer'] as WorkerCategory[]).map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat === selectedCategory ? 'all' : cat)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              className={`shrink-0 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
                 selectedCategory === cat
-                  ? 'bg-primary text-white'
-                  : 'bg-white border border-border text-muted-foreground hover:border-primary'
+                  ? 'bg-primary text-white shadow-md shadow-primary/25'
+                  : 'bg-white border border-border text-muted-foreground hover:border-primary/50'
               }`}
             >
-              {WORKER_CATEGORIES[cat].icon} {WORKER_CATEGORIES[cat].en}
+              <span>{WORKER_CATEGORIES[cat].icon}</span>
+              {WORKER_CATEGORIES[cat].en}
             </button>
           ))}
         </div>
@@ -141,21 +142,27 @@ export default function FindJobsPage() {
           <p className="text-sm text-muted-foreground">
             {filteredJobs.length} job{filteredJobs.length !== 1 ? 's' : ''} found
           </p>
-          <span className="text-xs text-muted-foreground">{selectedCity}</span>
+          <Badge variant="outline" className="text-[10px] rounded-lg px-2 py-0.5">
+            📍 {selectedCity}
+          </Badge>
         </div>
 
         {/* Job list */}
         <div className="space-y-3">
           {filteredJobs.length > 0 ? (
-            filteredJobs.map(job => <JobCard key={job.id} job={job} />)
+            filteredJobs.map((job, idx) => (
+              <div key={job.id} className="animate-slide-up" style={{ animationDelay: `${idx * 60}ms` }}>
+                <JobCard job={job} />
+              </div>
+            ))
           ) : (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-3">🔍</div>
-              <p className="text-sm font-medium text-foreground">No jobs found</p>
-              <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters or search</p>
+            <div className="text-center py-16 animate-fade-in">
+              <div className="text-5xl mb-4">🔍</div>
+              <p className="text-base font-semibold text-foreground">No jobs found</p>
+              <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto">Try adjusting your filters or search to find more opportunities</p>
               {activeFilterCount > 0 && (
-                <Button variant="outline" size="sm" className="mt-3" onClick={clearFilters}>
-                  Clear Filters
+                <Button variant="outline" size="sm" className="mt-4 rounded-xl" onClick={clearFilters}>
+                  Clear All Filters
                 </Button>
               )}
             </div>
@@ -165,19 +172,19 @@ export default function FindJobsPage() {
 
       {/* Filter Dialog */}
       <Dialog open={showFilters} onOpenChange={setShowFilters}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Filters</DialogTitle>
             <DialogDescription>Narrow down your job search</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-2">
+          <div className="space-y-5 mt-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">City</label>
+              <label className="text-sm font-semibold">City</label>
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm"
+                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 {CITIES.map(city => (
                   <option key={city} value={city}>{city}</option>
@@ -186,32 +193,32 @@ export default function FindJobsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Budget Range (PKR)</label>
+              <label className="text-sm font-semibold">Budget Range (PKR)</label>
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Min"
                   type="number"
                   value={budgetMin}
                   onChange={(e) => setBudgetMin(e.target.value)}
-                  className="w-full"
+                  className="w-full rounded-xl"
                 />
-                <span className="text-muted-foreground">—</span>
+                <span className="text-muted-foreground font-medium">—</span>
                 <Input
                   placeholder="Max"
                   type="number"
                   value={budgetMax}
                   onChange={(e) => setBudgetMax(e.target.value)}
-                  className="w-full"
+                  className="w-full rounded-xl"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
+              <label className="text-sm font-semibold">Category</label>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value as WorkerCategory | 'all')}
-                className="w-full h-11 rounded-lg border border-input bg-background px-3 text-sm"
+                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="all">All Categories</option>
                 {(Object.keys(WORKER_CATEGORIES) as WorkerCategory[]).map(cat => (
@@ -224,8 +231,8 @@ export default function FindJobsPage() {
           </div>
 
           <div className="flex gap-3 mt-4">
-            <Button variant="outline" className="flex-1" onClick={clearFilters}>Reset</Button>
-            <Button className="flex-1" onClick={() => setShowFilters(false)}>Apply</Button>
+            <Button variant="outline" className="flex-1 rounded-xl h-11" onClick={clearFilters}>Reset</Button>
+            <Button className="flex-1 rounded-xl h-11" onClick={() => setShowFilters(false)}>Apply Filters</Button>
           </div>
         </DialogContent>
       </Dialog>

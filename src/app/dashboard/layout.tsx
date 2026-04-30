@@ -19,16 +19,19 @@ export default function DashboardLayout({
   if (!mounted) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="text-center">
+          <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
       </div>
     )
   }
 
-  const hideNav = pathname === '/sos'
+  const hideNav = pathname === '/dashboard/sos'
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <main className={`flex-1 pb-${hideNav ? '4' : '16'}`}>
+      <main className={hideNav ? 'flex-1 pb-4' : 'flex-1 pb-20'}>
         {children}
       </main>
       {!hideNav && <BottomNav />}

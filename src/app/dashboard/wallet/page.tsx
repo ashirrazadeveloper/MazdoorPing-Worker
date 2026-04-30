@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TrendingUp, ArrowUpFromLine, Minus } from 'lucide-react'
+import { TrendingUp, ArrowUpFromLine, Minus, CheckCircle2, History } from 'lucide-react'
+import Link from 'next/link'
 
 export default function WalletPage() {
   const [showWithdraw, setShowWithdraw] = useState(false)
@@ -46,58 +47,78 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50/50">
       <Header title="Wallet" />
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {/* Balance Card */}
-        <Card className="bg-gradient-to-br from-primary to-green-600 border-0 text-white overflow-hidden">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-green-100 text-sm font-medium">Available Balance</p>
-              <Badge className="bg-white/20 text-white border-0 text-xs">
-                ✅ Active
-              </Badge>
+        <Card className="bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 border-0 text-white overflow-hidden shadow-lg shadow-green-600/20">
+          <CardContent className="p-5 relative">
+            {/* Decorative */}
+            <div className="absolute top-0 right-0 h-32 w-32 bg-white/5 rounded-full -mr-10 -mt-10" />
+            <div className="absolute bottom-0 left-0 h-24 w-24 bg-white/5 rounded-full -ml-8 -mb-8" />
+
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-green-100 text-sm font-medium">Available Balance</p>
+                <Badge className="bg-white/20 text-white border-0 text-[10px] rounded-lg px-2">
+                  ✅ Active
+                </Badge>
+              </div>
+              <p className="text-4xl font-extrabold mb-6 tracking-tight">{formatPKR(balance)}</p>
+              <div className="flex gap-3">
+                <Button
+                  className="bg-white text-green-600 hover:bg-green-50 h-11 font-semibold rounded-xl shadow-sm flex-1"
+                  onClick={() => setShowWithdraw(true)}
+                >
+                  <ArrowUpFromLine className="h-4 w-4 mr-2" />
+                  Withdraw
+                </Button>
+                <Link href="#history" className="flex-1">
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 font-semibold rounded-xl border-white/30 text-white hover:bg-white/10"
+                  >
+                    <History className="h-4 w-4 mr-2" />
+                    History
+                  </Button>
+                </Link>
+              </div>
             </div>
-            <p className="text-3xl font-bold mb-6">{formatPKR(balance)}</p>
-            <Button
-              className="bg-white text-primary hover:bg-green-50 h-11 font-semibold"
-              onClick={() => setShowWithdraw(true)}
-            >
-              <ArrowUpFromLine className="h-4 w-4 mr-2" />
-              Withdraw Money
-            </Button>
           </CardContent>
         </Card>
 
         {/* Earnings Summary */}
-        <Card>
+        <Card className="border-border/60">
           <CardContent className="p-4">
             <h3 className="text-sm font-bold text-foreground mb-3">Earnings Summary</h3>
             <div className="grid grid-cols-3 gap-3">
-              <div className="text-center p-2 bg-green-50 rounded-lg">
-                <TrendingUp className="h-4 w-4 text-green-600 mx-auto mb-1" />
-                <p className="text-xs text-muted-foreground">Earnings</p>
-                <p className="text-sm font-bold text-green-600">{formatPKR(totalEarnings)}</p>
+              <div className="text-center p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                <TrendingUp className="h-5 w-5 text-green-600 mx-auto mb-1.5" />
+                <p className="text-[10px] text-muted-foreground font-medium">Earnings</p>
+                <p className="text-sm font-bold text-green-600 mt-0.5">{formatPKR(totalEarnings)}</p>
               </div>
-              <div className="text-center p-2 bg-orange-50 rounded-lg">
-                <ArrowUpFromLine className="h-4 w-4 text-orange-600 mx-auto mb-1" />
-                <p className="text-xs text-muted-foreground">Withdrawn</p>
-                <p className="text-sm font-bold text-orange-600">{formatPKR(totalWithdrawals)}</p>
+              <div className="text-center p-3 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl">
+                <ArrowUpFromLine className="h-5 w-5 text-orange-600 mx-auto mb-1.5" />
+                <p className="text-[10px] text-muted-foreground font-medium">Withdrawn</p>
+                <p className="text-sm font-bold text-orange-600 mt-0.5">{formatPKR(totalWithdrawals)}</p>
               </div>
-              <div className="text-center p-2 bg-red-50 rounded-lg">
-                <Minus className="h-4 w-4 text-red-600 mx-auto mb-1" />
-                <p className="text-xs text-muted-foreground">Commission</p>
-                <p className="text-sm font-bold text-red-600">{formatPKR(totalCommission)}</p>
+              <div className="text-center p-3 bg-gradient-to-br from-red-50 to-rose-50 rounded-xl">
+                <Minus className="h-5 w-5 text-red-500 mx-auto mb-1.5" />
+                <p className="text-[10px] text-muted-foreground font-medium">Commission</p>
+                <p className="text-sm font-bold text-red-500 mt-0.5">{formatPKR(totalCommission)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Transaction History */}
-        <Card>
+        <Card className="border-border/60" id="history">
           <CardContent className="p-4">
-            <h3 className="text-sm font-bold text-foreground mb-3">Transaction History</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-foreground">Transaction History</h3>
+              <span className="text-[10px] text-muted-foreground">{mockTransactions.length} transactions</span>
+            </div>
             <div className="max-h-96 overflow-y-auto">
               {mockTransactions.map(tx => (
                 <div key={tx.id}>
@@ -112,7 +133,7 @@ export default function WalletPage() {
 
       {/* Withdraw Dialog */}
       <Dialog open={showWithdraw} onOpenChange={setShowWithdraw}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Withdraw Money</DialogTitle>
             <DialogDescription>
@@ -121,33 +142,34 @@ export default function WalletPage() {
           </DialogHeader>
 
           {submitted ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8 animate-fade-in">
               <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                <span className="text-3xl">🎉</span>
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
               </div>
               <p className="text-lg font-bold text-foreground">Withdrawal Requested!</p>
               <p className="text-sm text-muted-foreground mt-1">Your money will arrive within 24 hours</p>
             </div>
           ) : (
-            <div className="space-y-4 mt-2">
+            <div className="space-y-5 mt-2">
               <div className="space-y-2">
-                <Label>Withdrawal Method</Label>
+                <Label className="text-xs font-semibold">Withdrawal Method</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { value: 'jazzcash' as const, label: 'JazzCash', color: 'bg-red-50 border-red-200 text-red-700' },
-                    { value: 'easypaisa' as const, label: 'EasyPaisa', color: 'bg-green-50 border-green-200 text-green-700' },
-                    { value: 'bank' as const, label: 'Bank', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+                    { value: 'jazzcash' as const, label: 'JazzCash', emoji: '📱', color: 'bg-red-50 border-red-200 text-red-700' },
+                    { value: 'easypaisa' as const, label: 'EasyPaisa', emoji: '💚', color: 'bg-green-50 border-green-200 text-green-700' },
+                    { value: 'bank' as const, label: 'Bank', emoji: '🏦', color: 'bg-blue-50 border-blue-200 text-blue-700' },
                   ].map(method => (
                     <button
                       key={method.value}
                       type="button"
                       onClick={() => setWithdrawMethod(method.value)}
-                      className={`p-2.5 rounded-lg border text-xs font-medium transition-colors ${
+                      className={`p-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
                         withdrawMethod === method.value
-                          ? `${method.color} ring-2 ring-primary/30`
-                          : 'bg-white border-border text-muted-foreground'
+                          ? `${method.color} ring-2 ring-primary/30 scale-[1.02]`
+                          : 'bg-white border-border text-muted-foreground hover:border-primary/30'
                       }`}
                     >
+                      <span className="text-lg block mb-0.5">{method.emoji}</span>
                       {method.label}
                     </button>
                   ))}
@@ -155,7 +177,7 @@ export default function WalletPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="withdraw-amount">Amount (PKR) *</Label>
+                <Label htmlFor="withdraw-amount" className="text-xs font-semibold">Amount (PKR) *</Label>
                 <Input
                   id="withdraw-amount"
                   type="number"
@@ -164,12 +186,13 @@ export default function WalletPage() {
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   max={balance}
                   min={500}
+                  className="h-11 rounded-xl"
                 />
-                <p className="text-xs text-muted-foreground">Min: PKR 500 · Max: {formatPKR(balance)}</p>
+                <p className="text-[11px] text-muted-foreground">Min: PKR 500 · Max: {formatPKR(balance)}</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="withdraw-account">
+                <Label htmlFor="withdraw-account" className="text-xs font-semibold">
                   {withdrawMethod === 'bank' ? 'Account Number (IBAN)' : 'Account Number'} *
                 </Label>
                 <Input
@@ -177,17 +200,18 @@ export default function WalletPage() {
                   placeholder={withdrawMethod === 'bank' ? 'PK00XXXX0000000000000' : '03XX-XXXXXXX'}
                   value={withdrawAccount}
                   onChange={(e) => setWithdrawAccount(e.target.value)}
+                  className="h-11 rounded-xl"
                 />
               </div>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
                 <p className="text-xs text-yellow-800">
                   ⚠️ Withdrawal will be processed within 24 hours. Ensure your account number is correct.
                 </p>
               </div>
 
               <Button
-                className="w-full h-12"
+                className="w-full h-12 rounded-xl font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-600/25"
                 size="lg"
                 onClick={handleWithdraw}
                 disabled={!withdrawAmount || !withdrawAccount || parseInt(withdrawAmount) > balance}
